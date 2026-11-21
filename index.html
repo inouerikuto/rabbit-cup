@@ -1,0 +1,2250 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="format-detection" content="telephone=no" />
+<title>チーム分けアプリ（ブラウザ版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== モバイルファースト（基本スタイルはスマホ想定、768px以上で拡張） ===== */
+  :root{
+    --bg:#eef0f7;
+    --card:#fff;
+    --ink:#181b2e;
+    --muted:#6b7280;
+    --accent:#4f46e5;
+    --accent-dark:#3730a5;
+    --pop:#ff6b4a;
+    --pop-dark:#e8532f;
+    --accent-soft:#ecebfd;
+    --line:#e6e8f2;
+    --danger:#e5484d;
+    --tap:44px;
+    --display-font:'Rajdhani','Hiragino Kaku Gothic ProN',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    background:var(--bg);margin:0;padding:0;color:var(--ink);font-size:16px;line-height:1.55;
+    overscroll-behavior-y:none;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;
+    background:linear-gradient(120deg,var(--accent) 0%,var(--accent-dark) 65%,#241e6b 100%);
+    box-shadow:0 4px 16px rgba(79,70,229,0.25);
+    position:sticky;top:0;z-index:20;
+    padding-left:calc(16px + env(safe-area-inset-left,0px));
+    padding-right:calc(16px + env(safe-area-inset-right,0px));
+  }
+  h1{font-family:var(--display-font);font-size:19px;font-weight:700;margin:0;color:#fff;letter-spacing:.3px;display:flex;align-items:center;gap:8px}
+  h2{font-family:var(--display-font);font-weight:700;font-size:21px;letter-spacing:.2px;margin:2px 0 4px}
+
+  button, input[type="button"]{
+    background:var(--pop);color:#fff;border:none;padding:11px 16px;border-radius:10px;
+    cursor:pointer;font-size:15px;font-weight:600;min-height:var(--tap);
+    box-shadow:0 3px 10px rgba(255,107,74,0.28);
+    transition:transform .1s ease, box-shadow .15s ease, opacity .15s ease;
+    -webkit-appearance:none;appearance:none;touch-action:manipulation;
+  }
+  button:active{transform:translateY(1px) scale(.98);box-shadow:0 1px 4px rgba(255,107,74,0.25)}
+  button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent);box-shadow:none}
+  button.ghost:active{background:var(--accent-soft)}
+  button.danger{background:var(--danger);box-shadow:0 3px 10px rgba(229,72,77,0.28)}
+
+  main{
+    padding:14px;padding-bottom:96px;max-width:1100px;margin:14px auto;
+    padding-left:calc(14px + env(safe-area-inset-left,0px));
+    padding-right:calc(14px + env(safe-area-inset-right,0px));
+  }
+  .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(24,27,46,0.06);margin-bottom:14px;border:1px solid var(--line)}
+
+  /* ===== ボトムステッパー：現在のフェーズを表示（コート・ライン風の進行トラック） ===== */
+  .stepper-nav{
+    position:fixed;left:0;right:0;bottom:0;
+    display:flex;justify-content:space-around;align-items:stretch;
+    background:#fff;border-top:1px solid var(--line);
+    box-shadow:0 -6px 20px rgba(24,27,46,0.08);
+    padding:8px calc(4px + env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) calc(4px + env(safe-area-inset-left,0px));
+    z-index:40;
+  }
+  .step-item{
+    position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    background:transparent;color:var(--muted);border:none;border-radius:10px;
+    padding:6px 2px 4px;min-height:56px;font-size:11px;cursor:pointer;box-shadow:none;
+  }
+  .step-item:active{transform:none;background:var(--accent-soft)}
+  .step-item::before{
+    content:'';position:absolute;top:17px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0;
+  }
+  .step-item:first-child::before{display:none}
+  .step-circle{
+    position:relative;z-index:1;width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:#eef0f7;color:var(--muted);font-family:var(--display-font);font-size:14px;font-weight:700;
+    transition:background .15s,color .15s,box-shadow .15s;
+  }
+  .step-label{font-size:11px;white-space:nowrap;font-weight:600}
+  .step-item.active{color:var(--accent)}
+  .step-item.active .step-circle{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;box-shadow:0 0 0 4px var(--accent-soft)}
+
+  label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted);font-weight:600}
+  input[type=text], select, input[type=number]{
+    padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);width:100%;box-sizing:border-box;
+    font-size:16px;min-height:var(--tap);background:#fbfbfe;transition:border-color .15s;
+    -webkit-appearance:none;appearance:none;
+  }
+  input[type=text]:focus, select:focus, input[type=number]:focus{outline:none;border-color:var(--accent);background:#fff}
+  select{
+    background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;background-size:16px;
+    padding-right:36px;
+  }
+
+  /* .row: モバイルでは縦積み、768px以上で横並び */
+  .row{display:flex;flex-direction:column;gap:10px}
+  .col{flex:1;min-width:0}
+
+  /* 縦積み→横並びの汎用コンテナ（フォーム行やチームA/B表示に使用） */
+  .stack-row{display:flex;flex-direction:column;gap:10px}
+  .stack-row > *{width:100%}
+
+  ul.participants{list-style:none;padding:0;margin:0}
+  ul.participants li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid var(--line)}
+  ul.participants li:last-child{border-bottom:none}
+
+  .small{font-size:13px;color:var(--muted)}
+
+  /* テーブルは横スクロール可能なラッパーで包む */
+  .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+
+  .top-right{display:flex;gap:6px;align-items:center}
+  .nav-menu{position:relative}
+  #menuBtn{background:rgba(255,255,255,0.14);color:#fff;border:1.5px solid rgba(255,255,255,0.5);box-shadow:none}
+  .menu-list{position:absolute;right:0;top:44px;background:var(--card);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgba(24,27,46,0.16);display:none;min-width:180px;z-index:30}
+  .menu-list a{display:block;padding:12px 12px;color:var(--ink);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600}
+  .menu-list a:hover, .menu-list a:active{background:var(--accent-soft);color:var(--accent)}
+  .visible{display:block}
+  .muted{color:var(--muted);}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .controls button{flex:1 1 auto}
+  .tag{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700}
+  .team-box{border:1px solid var(--line);padding:10px 12px;border-radius:12px;margin-bottom:8px;border-left:4px solid var(--accent);background:linear-gradient(180deg,#fff,#fbfbff)}
+  .team-title{font-family:var(--display-font);font-weight:700;margin-bottom:4px;color:var(--accent-dark);font-size:15px}
+  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .export-row{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+  .danger{background:var(--danger)}
+  .hidden{display:none}
+  footer{padding:14px 12px;text-align:center;color:var(--muted);font-size:12px}
+  .member-checkbox { margin-right:8px; }
+
+  .teammates-cross-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;text-align:center}
+  .teammates-cross-table th,
+  .teammates-cross-table td{border:1px solid var(--line);padding:6px 10px;white-space:nowrap}
+  .teammates-cross-table th{background:var(--accent-soft);color:var(--accent-dark);text-transform:none;letter-spacing:0}
+  .teammates-cross-table tr:nth-child(even) td{background:#fafafe}
+  .teammates-cross-table td:first-child{font-weight:bold;text-align:left}
+
+  /* モーダルは画面幅からはみ出さないように */
+  .modal-box{width:100%;max-width:340px;box-sizing:border-box}
+
+  /* ===== 768px以上（タブレット・PC）で横並びレイアウトに拡張 ===== */
+  @media (min-width:768px){
+    body{font-size:16px}
+    header{padding:14px 20px}
+    h1{font-size:21px}
+    main{padding:20px;margin:20px auto}
+    .row{flex-direction:row;gap:10px}
+    .stack-row{flex-direction:row}
+    .stack-row > *{width:auto}
+    .menu-list a{font-size:13px}
+    .controls button{flex:0 0 auto}
+    .stepper-nav{max-width:480px;left:50%;transform:translateX(-50%);border-radius:18px 18px 0 0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+    .step-label{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐇 チーム分けアプリ <span id="modeBadge" class="tag hidden" style="vertical-align:middle;margin-left:4px"></span></h1>
+  <div class="top-right">
+    <div class="nav-menu">
+      <button id="menuBtn" class="ghost">⋯ その他</button>
+      <div id="menuList" class="menu-list">
+        <a href="#" data-target="register">参加者の登録に戻る</a>
+        <a href="#" id="menuNewEvent">新しい大会を始める</a>
+        <a href="#" data-target="history">試合履歴・バックアップ</a>
+        <a href="#" data-target="mode">モードを変更</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- モード選択 -->
+  <section id="mode" class="card view">
+    <h2>モードを選ぼう</h2>
+    <p class="small">プレイのスタイルに合わせて、どちらかのモードを選んでください。あとからいつでも「⋯その他」メニューから変更できます。</p>
+    <div class="stack-row">
+      <button class="card modeSelectBtn" data-mode="tournament" style="flex:1;text-align:left;background:#fff;color:var(--ink);box-shadow:0 8px 24px rgba(24,27,46,0.06);border:1.5px solid var(--line);cursor:pointer;min-height:auto">
+        <div class="team-title" style="font-size:18px">🏆 rabbit杯ver</div>
+        <div class="small">毎試合の勝敗・得点を記録して、順位やランキングを競う本番モードです。</div>
+      </button>
+      <button class="card modeSelectBtn" data-mode="practice" style="flex:1;text-align:left;background:#fff;color:var(--ink);box-shadow:0 8px 24px rgba(24,27,46,0.06);border:1.5px solid var(--line);cursor:pointer;min-height:auto">
+        <div class="team-title" style="font-size:18px">🔄 練習ver</div>
+        <div class="small">試合結果は記録せず、まだ組んだことがない人同士で組めるようにチーム分けだけを繰り返す練習モードです。</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- 参加者登録 -->
+  <section id="register" class="card view hidden">
+    <h2>参加者を登録しよう</h2>
+    <p class="small">名前・性別・期を入力して、参加者を追加してください。全員そろったら、下のボタンでチーム分けに進みます。</p>
+    <div class="card">
+      <div class="stack-row">
+        <div style="flex:2">
+          <label>名前</label>
+          <input id="p_name" type="text" placeholder="例: 田中太郎">
+        </div>
+        <div style="flex:1">
+          <label>性別</label>
+          <select id="p_gender"><option value="男">男</option><option value="女">女</option></select>
+        </div>
+        <div style="flex:1">
+          <label>期</label>
+          <input id="p_term" type="text" placeholder="例: 3">
+        </div>
+        <div>
+          <button id="addParticipant" style="width:100%">この人を追加</button>
+        </div>
+      </div>
+      <div class="export-row" style="margin-top:10px">
+        <button id="importCsvBtn" class="ghost">CSVから一括登録</button>
+        <input type="file" id="importCsvInput" accept=".csv,text/csv" class="hidden">
+      </div>
+      <div style="margin-top:4px">
+        <small class="small">※ 1行目「名前,性別,期」、2行目以降に1人ずつ入力したCSVファイルを読み込めます（性別は「男」「女」、期は空欄でも可）。同名の参加者はスキップされます。</small>
+      </div>
+      <div style="margin-top:10px">
+        <label>参加者一覧（タップで編集・削除）</label>
+        <p id="participantsSummary" class="hidden" style="margin:0 0 4px;font-weight:700"></p>
+        <ul id="participantsList" class="participants"></ul>
+        <p id="noParticipantsMsg" class="small hidden">まだ参加者がいません。上のフォームから登録してください。</p>
+      </div>
+      <div style="margin-top:10px" class="row">
+        <div class="col card">
+          <label>チーム分けの設定</label>
+          <p class="small" style="margin-top:-4px">迷ったら初期値のままで大丈夫です。</p>
+          <div class="row">
+            <div class="col">
+              <label>チーム数</label>
+              <input id="team_num" type="number" min="1" value="3">
+            </div>
+            <div class="col">
+              <label>実力バランスの重視度</label>
+              <input id="maxmin_step" type="number" step="0.5" min="0" value="5">
+              <div class="flex" style="margin-top:4px;justify-content:space-between;gap:6px">
+                <p class="small" style="margin:0">大きいほど実力差を減らすことを優先します</p>
+                <button type="button" id="balanceHintToggle" class="ghost" style="padding:4px 10px;min-height:auto;font-size:12px;flex:0 0 auto">目安を見る</button>
+              </div>
+              <div id="balanceHintBox" class="small hidden" style="margin-top:8px;padding:10px 12px;background:var(--accent-soft);border-radius:10px;line-height:1.7">
+                <strong style="color:var(--accent-dark)">重視度の目安</strong><br>
+                ・<strong>1〜3</strong>：新しい組み合わせを優先。まだあまり組んだことがない交流重視の練習会向け<br>
+                ・<strong>5（初期値）</strong>：実力差と新しさをほどほどに両立するバランス型<br>
+                ・<strong>8〜15</strong>：実力差をできるだけ揃えたい大会・本番向け<br>
+                <span class="muted">目安：重視度5では「勝率20%差のチーム分け」と「同じ人ともう1回組み直すこと」が、だいたい同じくらいの"悪さ"として扱われます。参加者の実力差が大きいグループほど高めの数値がおすすめです。</span>
+              </div>
+            </div>
+            <div class="col">
+              <label>候補を作る数</label>
+              <input id="lowest_candidates" type="number" min="1" value="10">
+              <p class="small" style="margin-top:4px">多いほど、より良い候補が見つかりやすくなります</p>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <label class="flex" style="cursor:pointer;gap:8px">
+              <input type="checkbox" id="considerTerm" style="width:auto;min-height:auto">
+              <span>期もバラバラになるように考慮する</span>
+            </label>
+            <p class="small" style="margin-top:4px">オンにすると、同じ期の人が同じチームに集中しないようにチーム分けします</p>
+          </div>
+          <div style="margin-top:8px" class="controls">
+            <button id="doTeam">この設定でチーム分けする</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- 新しい大会を始める確認モーダル -->
+<div id="newEventModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.4);justify-content:center;align-items:center;z-index:50;">
+  <div style="background:white;padding:20px;border-radius:16px;text-align:left;width:100%;max-width:340px;box-sizing:border-box;margin:0 16px;">
+    <h3 style="margin-top:0">新しい大会を始める</h3>
+    <p class="small">参加者の名簿（名前・性別・期）とチーム分けの設定は残し、試合・チーム分け・成績をすべて消して第1回から始めます。今回参加しない人は、始めたあとに参加者一覧から削除してください。</p>
+    <p class="small">今の大会のデータをバックアップしますか？<br>間違えて作ったデータを消したいだけなら「バックアップせずに始める」を選んでください。</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button id="newEventWithBackup">バックアップしてから始める</button>
+      <button id="newEventWithoutBackup" class="danger">バックアップせずに始める</button>
+      <button id="cancelNewEvent" class="ghost">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全データ削除確認モーダル -->
+<div id="confirmModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.4);justify-content:center;align-items:center;">
+  <div style="background:white;padding:20px;border-radius:8px;text-align:center;width:100%;max-width:320px;box-sizing:border-box;">
+    <p>すべてのデータ（参加者、チーム、試合履歴）を削除してもよろしいですか？<br><span class="small">この操作は取り消せません。心配な場合は、先に試合履歴画面から「全データをバックアップ」しておきましょう。</span></p>
+    <button id="yesDelete" class="danger">はい、削除する</button>
+    <button id="noDelete" class="ghost">いいえ</button>
+  </div>
+</div>
+
+<!-- 試合履歴削除確認モーダル -->
+<div id="deleteMatchModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.4);justify-content:center;align-items:center;">
+  <div style="background:white;padding:20px;border-radius:8px;text-align:center;width:100%;max-width:320px;box-sizing:border-box;">
+    <p>この試合記録を削除しますか？（得点・勝敗・組み合わせも再計算されます）</p>
+    <button id="yesDeleteMatch" class="danger">はい、削除する</button>
+    <button id="noDeleteMatch" class="ghost">いいえ</button>
+  </div>
+</div>
+
+<!-- 名前編集用モーダル -->
+<div id="editParticipantModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.4);justify-content:center;align-items:center;">
+  <div style="background:white;padding:20px;border-radius:16px;text-align:left;width:100%;max-width:300px;box-sizing:border-box;">
+    <h3 style="margin-top:0">参加者を編集</h3>
+    <div style="margin-bottom:10px">
+      <label>名前</label>
+      <input id="editNameInput" type="text" placeholder="名前">
+    </div>
+    <div style="margin-bottom:10px">
+      <label>性別</label>
+      <select id="editGenderSelect">
+        <option value="男">男</option>
+        <option value="女">女</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>期</label>
+      <input id="editTermInput" type="text" placeholder="例: 3">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="cancelEditParticipant" class="ghost">キャンセル</button>
+      <button id="saveEditParticipant">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 試合履歴編集モーダル-->
+ <div id="editMatchModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+     background:rgba(0,0,0,0.4);justify-content:center;align-items:center;">
+  <div style="background:white;padding:20px;border-radius:16px;text-align:left;width:100%;max-width:420px;box-sizing:border-box;max-height:88vh;overflow-y:auto">
+    <h3 style="margin-top:0">試合を編集</h3>
+    <p class="small">登録済みの参加者から、出場メンバーをチームごとに4人ずつ選んでください。</p>
+    <div class="stack-row" style="align-items:flex-start">
+      <div style="flex:1">
+        <strong class="small" id="editSideALabel">チームA</strong>
+        <div id="editTeamASelects"></div>
+      </div>
+      <div style="flex:1">
+        <strong class="small" id="editSideBLabel">チームB</strong>
+        <div id="editTeamBSelects"></div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>勝利チーム</label>
+      <select id="editWinner">
+        <option value="0" id="editWinnerOptA">チームAの勝ち</option>
+        <option value="1" id="editWinnerOptB">チームBの勝ち</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="col">
+        <label id="editPointALabel">得点（チームA）</label>
+        <select id="editPointA"></select>
+      </div>
+      <div class="col">
+        <label id="editPointBLabel">得点（チームB）</label>
+        <select id="editPointB"></select>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+      <button id="cancelEditMatch" class="ghost">キャンセル</button>
+      <button id="saveEditMatch">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="deleteConfirmModal" class="modal" style="display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);position:fixed;inset:0;">
+  <div style="background:white;padding:20px;border-radius:8px;width:100%;max-width:300px;text-align:center;box-sizing:border-box;">
+    <p>「<strong id="deleteTargetName"></strong>」を削除しますか？<br><span class="small">過去の試合・練習の記録には「削除済み」として名前が残ります（ランキングからは外れます）。</span></p>
+    <div style="margin-top:15px;display:flex;justify-content:center;gap:10px;">
+      <button id="cancelDeleteParticipant" class="ghost">キャンセル</button>
+      <button id="confirmDeleteParticipant" class="danger">削除する</button>
+    </div>
+  </div>
+</div>
+
+  <!-- チーム分け結果 -->
+  <section id="team" class="card view hidden">
+    <h2>チーム分けの候補を選ぼう</h2>
+    <p class="small">おすすめの組み合わせを自動で選んでいます。気に入らなければ「候補を作り直す」か、下の候補一覧から選び直せます。</p>
+    <div class="card">
+      <div class="flex" style="justify-content:space-between">
+        <div>
+          <div class="small">第 <span id="rotationCount">1</span> 回のチーム分け</div>
+          <div class="small">選択基準: <span id="teamCriteria">自動</span></div>
+        </div>
+        <div>
+          <button id="toggleReason" class="ghost">他の候補も見る</button>
+        </div>
+      </div>
+      <p id="teamNotice" class="small hidden" style="margin:8px 0 0;padding:8px 10px;background:#fff4e5;border-radius:8px;color:#8a4b00"></p>
+      <div id="reasonBox" class="card hidden" style="margin-top:8px">
+        <div class="small">候補一覧（おすすめ順） — まだ組んだことがない人同士を優先しています</div>
+        <div id="candidatesArea"></div>
+      </div>
+      <div style="margin-top:8px" id="bestTeamsArea"></div>
+      <div style="margin-top:8px" class="controls">
+        <button id="regen" class="ghost">候補を作り直す</button>
+        <button id="acceptAndInput">このチームで試合を始める</button>
+        <button id="practiceAccept" class="hidden">この組み合わせで練習する</button>
+      </div>
+      <p id="practiceStatus" class="small hidden" style="margin-top:8px"></p>
+    </div>
+  </section>
+
+  <!-- 勝敗と得点入力 -->
+  <section id="input" class="card view hidden">
+    <h2>試合結果を入力しよう</h2>
+    <p class="small">1試合目は「AとB」「CとD」。2試合目は勝者同士・敗者同士の対戦カードが自動で出ます。出場した8人にチェックを入れ、得点を入力してください。</p>
+    <div class="card">
+      <label>現在のチーム分け（タップで編集）</label>
+      <div id="currentTeamsArea"></div>
+      <div style="margin-top:8px" class="card">
+        <label>対戦カード</label>
+        <select id="matchSelect"></select>
+        <p id="scheduleStatus" class="small" style="margin:6px 0 0"></p>
+
+        <!-- ここから：チームごとの勝敗・得点入力ブロック -->
+        <div id="perTeamInputs" style="margin-top:12px" class="hidden">
+          <div class="stack-row" style="align-items:flex-start">
+            <div style="flex:1">
+              <label id="teamALabel">チームA</label>
+              <div id="teamAMembers" style="margin-bottom:8px"></div>
+
+              <div class="row">
+                <div class="col">
+                  <label>得点</label>
+                  <select id="matchPointA"></select>
+                </div>
+              </div>
+            </div>
+
+            <div style="flex:1">
+              <label id="teamBLabel">チームB</label>
+              <div id="teamBMembers" style="margin-bottom:8px"></div>
+
+              <div class="row">
+                <div class="col">
+                  <label>得点</label>
+                  <select id="matchPointB"></select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <small class="small">※ それぞれのチームで<strong>4人</strong>（合計8人）をチェックしてください。5人チームは、休む1人（試合数が多い人から）のチェックを外してください。チェックした人だけ成績が更新されます。</small>
+          </div>
+        </div>
+        <!-- ここまで -->
+
+        <div style="margin-top:14px" class="controls">
+          <button id="nextMatch" class="ghost">保存して次の試合へ</button>
+          <button id="changeTeams">保存して次のチーム分けへ</button>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e3e8f0" class="controls">
+          <span class="small" style="align-self:center">ここまでの結果をすぐ見たいときは</span>
+          <button id="finishRotation" class="ghost">結果を見る</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 結果表示 -->
+  <section id="result" class="card view hidden">
+    <h2 id="resultHeading">結果を確認しよう</h2>
+    <p class="small" id="resultIntro">ここまでの成績です。チーム分けに戻って試合を続けることもできます。</p>
+    <div class="card">
+      <div id="rankingBlock">
+        <div class="small">ランキング（勝率が高い順、同率なら平均得点順）</div>
+        <div id="rankingArea"></div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="small">誰と何回チームを組んだか</div>
+        <div id="teammatesCountArea"></div>
+      </div>
+      <div style="margin-top:8px" class="export-row">
+        <span id="resultExportRow"><button id="exportResult">結果をCSVで保存</button></span>
+        <span id="practiceExportRow" class="hidden"><button id="exportPracticeHistory">チーム履歴をCSVで出力</button></span>
+        <button id="backToTeamFromResult" class="ghost">チーム分けに戻る</button>
+        <button id="newEventFromResult" class="ghost">新しい大会を始める</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 試合履歴 -->
+  <section id="history" class="card view hidden">
+    <h2>試合履歴とバックアップ</h2>
+    <p class="small">過去の試合の確認・修正や、データの保存・復元ができます。</p>
+    <div class="card">
+      <div class="export-row">
+        <button id="exportMatches">試合履歴をCSVで保存</button>
+        <button id="newEventFromHistory" class="ghost">新しい大会を始める（名簿は残す）</button>
+        <button id="clearAll" class="danger">すべてのデータを削除</button>
+      </div>
+      <div class="export-row" style="margin-top:8px">
+        <button id="exportBackup" class="ghost">全データをバックアップ（JSON）</button>
+        <button id="importBackupBtn" class="ghost">バックアップから復元</button>
+        <input type="file" id="importBackupInput" accept="application/json" class="hidden">
+      </div>
+      <div style="margin-top:6px">
+        <small class="small">※ バックアップはこの端末・ブラウザ内のデータをファイルに保存する機能です。機種変更やブラウザデータ消去に備えて、定期的な保存をおすすめします。</small>
+      </div>
+      <div style="margin-top:8px" class="table-wrap">
+        <table id="matchesTable">
+          <thead><tr><th>日時</th><th>対戦カード</th><th>勝敗</th><th>得点</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  データはこの端末のブラウザ内に自動で保存されます。
+</footer>
+
+<!-- 現在のフェーズを示すボトムステッパー -->
+<nav id="stepperNav" class="stepper-nav">
+  <button class="step-item" data-target="register" data-step="1">
+    <span class="step-circle">1</span>
+    <span class="step-label">参加者</span>
+  </button>
+  <button class="step-item" data-target="team" data-step="2">
+    <span class="step-circle">2</span>
+    <span class="step-label">チーム分け</span>
+  </button>
+  <button class="step-item" data-target="input" data-step="3">
+    <span class="step-circle">3</span>
+    <span class="step-label">試合入力</span>
+  </button>
+  <button class="step-item" data-target="result" data-step="4">
+    <span class="step-circle" id="resultStepCircle">4</span>
+    <span class="step-label" id="resultStepLabel">結果</span>
+  </button>
+</nav>
+
+<script>
+/* ======= データモデル（localStorage） =======
+members: [{name, gender, term, rate, matches, matchesPlayed, pointsHistory: [n,...], winsHistory:[0/1,...]}]
+teams_current: [[memberName,...], ...]  // 現在採用中のチーム
+candidates: [{teams, cost, total_new, total_pref}]  // 直近に作ったチーム分け候補（再読み込みしても残す）
+selectedCandidate: 候補の何番目を採用中か（null = 候補以外から来たチーム）
+currentAdopted: teams_current を「試合開始／練習」で採用済みか（回数の二重カウント防止）
+matches: [{time, teams: [teamAArray,teamBArray], winnerTeamIndex:0/1, pointsA: int, pointsB: int}]
+         teams が唯一の正。旧版の checkedMembersA/B は読み込み時に捨てる
+practiceHistory: [{round, time, teams}]
+rotationCount: 次に採用するチーム分けの回数
+teammates_count: { name: {otherName: count, ...}, ... }
+         ※ 保存はするが正ではない。matches と practiceHistory から rebuildStats() で毎回作り直す
+過去の記録（matches / practiceHistory）は参加者を削除しても書き換えない（名前が残り「削除済み」と表示）
+=================================================*/
+
+const STORAGE_KEY = 'teamapp_v1';
+function emptyState(mode){
+  return {
+    mode: mode === undefined ? null : mode,
+    members: [],
+    teammates_count: {},
+    teams_current: [],
+    candidates: [],
+    selectedCandidate: null,
+    currentAdopted: false,
+    matches: [],
+    rounds: [],          // 大会ver：採用したチーム分け [{round, time, teams}]（5人チームで誰が休んだかを数えるため）
+    currentRound: null,  // 大会ver：いま試合をしているチーム分けの回
+    rotationCount: 1,
+    result_saved: null,
+    practiceHistory: []
+  };
+}
+// 旧バージョンのデータや壊れたデータを、今の形にそろえる
+function normalizeState(s){
+  const base = emptyState();
+  const out = Object.assign(base, s || {});
+  if(out.mode === undefined) out.mode = null;
+  ['members','teams_current','candidates','matches','practiceHistory','rounds'].forEach(k=>{
+    if(!Array.isArray(out[k])) out[k] = [];
+  });
+  if(!out.teammates_count || typeof out.teammates_count !== 'object') out.teammates_count = {};
+  if(typeof out.rotationCount !== 'number' || out.rotationCount < 1) out.rotationCount = 1;
+  if(out.selectedCandidate === undefined) out.selectedCandidate = null;
+  out.currentAdopted = !!out.currentAdopted;
+  // 旧版は teams と checkedMembersA/B を二重に持ち、削除・改名でずれていた。
+  // 成績計算に使っていた teams を正とし、checkedMembersA/B は捨てる
+  out.matches.forEach(m=>{
+    if(!Array.isArray(m.teams)) m.teams = [[],[]];
+    delete m.checkedMembersA;
+    delete m.checkedMembersB;
+  });
+  return out;
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return emptyState();
+    return normalizeState(JSON.parse(raw));
+  } catch(e){ return emptyState(); }
+}
+function saveState(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+// HTML に文字列を差し込むときは必ずこれを通す（名前に " や < が入っても壊れないように）
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// 初期ロード
+let state = loadState();
+
+// --- ユーティリティ ---
+function findMember(name){ return state.members.find(m=>m.name===name); }
+function recalcMemberRates(){
+  state.members.forEach(m=>{
+    const wins = m.winsHistory || [];
+    m.matches = wins.length;
+    m.rate = wins.length ? (wins.reduce((a,b)=>a+b,0)/wins.length) : 0;
+  });
+}
+function ensureTeammatesEntries(){
+  state.members.forEach(m=>{
+    if(!state.teammates_count[m.name]) state.teammates_count[m.name] = {};
+    state.members.forEach(n=>{
+      if(m.name!==n.name && state.teammates_count[m.name][n.name]===undefined) state.teammates_count[m.name][n.name]=0;
+    });
+  });
+}
+
+// 成績と「組んだ回数」を、記録（matches / practiceHistory）から作り直す。
+// 記録を変えたら必ずこれを呼ぶ。カウンターを足し引きしないので、編集・削除・改名でずれない。
+//  - 試合（大会ver）: 出場した人同士を「組んだ」と数える
+//  - 練習の記録（練習ver）: 同じチームになった人全員を「組んだ」と数える
+function rebuildStats(){
+  state.members.forEach(mem=>{
+    mem.pointsHistory = [];
+    mem.winsHistory = [];
+    mem.matchesPlayed = 0;
+    mem.sitOuts = 0;          // 5人チームで休んだ試合数（男女とも）
+    mem.fourMaleMatches = 0;  // 男子4人のチームで出た試合数
+  });
+  state.teammates_count = {};
+  const rosterOf = {};
+  state.rounds.forEach(r=>{ rosterOf[r.round] = r.teams; });
+
+  const countPairs = (team)=>{
+    for(let i=0;i<team.length;i++){
+      for(let j=i+1;j<team.length;j++){
+        const a = team[i], b = team[j];
+        if(a===b) continue;
+        state.teammates_count[a] = state.teammates_count[a] || {};
+        state.teammates_count[b] = state.teammates_count[b] || {};
+        state.teammates_count[a][b] = (state.teammates_count[a][b]||0)+1;
+        state.teammates_count[b][a] = (state.teammates_count[b][a]||0)+1;
+      }
+    }
+  };
+
+  state.matches.forEach(match=>{
+    match.teams.forEach((team,ti)=>{
+      team.forEach(name=>{
+        const mem = findMember(name);
+        if(!mem) return; // 削除済みの人は成績に数えない
+        mem.pointsHistory.push(ti===0 ? match.pointsA : match.pointsB);
+        mem.winsHistory.push(ti===match.winnerTeamIndex ? 1 : 0);
+        mem.matchesPlayed += 1;
+      });
+      countPairs(team);
+    });
+    countSitOutsAndFourMale(match, rosterOf);
+  });
+  state.practiceHistory.forEach(rec=>{
+    (rec.teams||[]).forEach(countPairs);
+  });
+
+  recalcMemberRates();
+  ensureTeammatesEntries();
+}
+
+// --- 休み・4男チームの試合数の数え方（大会ver） ---
+// どちらも、4男チーム・5人チームを順番に回す（rotationPenalty）のと、結果画面のランキングに使う。
+//  - 4男チーム：コートに男子4人で出た試合。アタッカー（男子・各チーム2枠）を4人で回すことになる
+//  - 休み：その回のチーム（rounds）にいたのに、この試合に出ていない人（男女とも）
+// 誰がアタッカーをしたかは現場で決めるので記録しない。
+function countSitOutsAndFourMale(match, rosterOf){
+  match.teams.forEach((players, side)=>{
+    const men = players.map(findMember).filter(m=> m && m.gender==='男');
+    if(men.length === 4 && players.length === 4) men.forEach(m=>{ m.fourMaleMatches += 1; });
+    if(match.round == null || !Array.isArray(match.teamIdx)) return; // ver7.x の試合は回の情報がない
+    const roster = (rosterOf[match.round] || [])[match.teamIdx[side]] || [];
+    roster.forEach(name=>{
+      if(players.includes(name)) return;
+      const m = findMember(name);
+      if(m) m.sitOuts += 1;
+    });
+  });
+}
+
+// --- チーム名と、1回のチーム分けでの試合の流れ ---
+function teamLetter(i){ return i < 26 ? String.fromCharCode(65+i) : String(i+1); }
+function teamName(i){ return `チーム${teamLetter(i)}`; }
+// 試合記録の左右のチーム名（ver7.x の記録はどのチームか分からないので「左/右」）
+function sideNames(rec){
+  if(Array.isArray(rec.teamIdx)) return [teamName(rec.teamIdx[0]), teamName(rec.teamIdx[1])];
+  return ['左のチーム', '右のチーム'];
+}
+
+// 採用中のチーム分けを「第N回」として記録する。試合を1つも入力しないまま
+// 別の候補に変えた場合は、新しい回にせず直前の回を上書きする（回の番号が飛ばないように）
+function adoptCurrentTeams(){
+  if(state.currentAdopted) return;
+  const time = new Date().toISOString();
+  const last = state.rounds[state.rounds.length-1];
+  const lastUnused = last && !state.matches.some(m=> m.round===last.round);
+  if(lastUnused){
+    last.teams = deepClone(state.teams_current);
+    last.time = time;
+    state.currentRound = last.round;
+  } else {
+    const r = state.rotationCount || 1;
+    state.rounds.push({round: r, time, teams: deepClone(state.teams_current)});
+    state.currentRound = r;
+    state.rotationCount = r + 1;
+  }
+  state.currentAdopted = true;
+}
+// まだ採用していないチーム分けを採用したら第何回になるか
+function nextRoundNo(){
+  if(state.mode !== 'practice'){
+    const last = state.rounds[state.rounds.length-1];
+    if(last && !state.matches.some(m=> m.round===last.round)) return last.round;
+  }
+  return state.rotationCount || 1;
+}
+
+// 1回のチーム分けでの対戦カード。1試合目は A-B・C-D（以降も2チームずつ）固定。
+// 4チームのときだけ、1試合目が2つとも終わったら 2試合目（勝者同士・敗者同士）を出す
+function scheduledCards(){
+  const n = state.teams_current.length;
+  const round = state.currentAdopted ? state.currentRound : null;
+  const ms = round == null ? [] : state.matches.filter(m=> m.round===round && Array.isArray(m.teamIdx));
+  const find = (a,b)=> ms.find(m=> (m.teamIdx[0]===a && m.teamIdx[1]===b) || (m.teamIdx[0]===b && m.teamIdx[1]===a));
+  const cards = [];
+  for(let i=0;i+1<n;i+=2){
+    cards.push({a:i, b:i+1, label:`1試合目　${teamName(i)} vs ${teamName(i+1)}`, done: !!find(i,i+1)});
+  }
+  let secondPending = false;
+  if(n === 4){
+    const res = [[0,1],[2,3]].map(([a,b])=>{
+      const m = find(a,b);
+      return m ? {w: m.teamIdx[m.winnerTeamIndex], l: m.teamIdx[1-m.winnerTeamIndex]} : null;
+    });
+    if(res[0] && res[1]){
+      [[res[0].w, res[1].w, '勝者同士'], [res[0].l, res[1].l, '敗者同士']].forEach(([a,b,kind])=>{
+        cards.push({a, b, label:`2試合目（${kind}）　${teamName(a)} vs ${teamName(b)}`, done: !!find(a,b)});
+      });
+    } else {
+      secondPending = true;
+    }
+  }
+  return {cards, secondPending};
+}
+
+// 名前を、記録・採用中のチーム・候補のすべてで置き換える
+function renameEverywhere(oldName, newName){
+  const swap = team => team.map(n => n===oldName ? newName : n);
+  state.matches.forEach(m=>{ m.teams = m.teams.map(swap); });
+  state.practiceHistory.forEach(r=>{ r.teams = (r.teams||[]).map(swap); });
+  state.rounds.forEach(r=>{ r.teams = (r.teams||[]).map(swap); });
+  state.teams_current = state.teams_current.map(swap);
+  state.candidates.forEach(c=>{ c.teams = c.teams.map(swap); });
+}
+
+// 参加者の削除：これから使うもの（採用中のチーム・候補）からだけ外す。
+// 過去の記録は書き換えない（他の人の成績や組んだ回数が変わらないように）
+function removeFromUpcoming(name){
+  const drop = team => team.filter(n => n!==name);
+  state.teams_current = state.teams_current.map(drop);
+  state.candidates.forEach(c=>{ c.teams = c.teams.map(drop); });
+}
+
+// 履歴表示用：削除済みの人には印を付ける
+function historyName(name){
+  return findMember(name) ? name : `${name}（削除済み）`;
+}
+
+// --- UI 管理 ---
+const views = Array.from(document.querySelectorAll('.view'));
+function showView(id){
+  views.forEach(v=>v.id===id? v.classList.remove('hidden') : v.classList.add('hidden'));
+  document.getElementById('menuList').classList.remove('visible');
+  document.querySelectorAll('.step-item').forEach(s=>{
+    s.classList.toggle('active', s.dataset.target === id);
+  });
+  window.scrollTo({top:0, behavior:'instant'});
+  renderAll();
+}
+
+document.getElementById('menuBtn').addEventListener('click',()=> {
+  document.getElementById('menuList').classList.toggle('visible');
+});
+// data-target のある項目だけ画面を切り替える（「新しい大会を始める」は確認画面を開くだけ）
+document.querySelectorAll('#menuList a[data-target]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    showView(a.dataset.target);
+  });
+});
+document.querySelectorAll('.step-item').forEach(btn=>{
+  btn.addEventListener('click',()=> showView(btn.dataset.target));
+});
+
+// --- 参加者登録画面操作 ---
+const participantsList = document.getElementById('participantsList');
+// 編集・削除対象を記録する変数（renderParticipants()の外で1つだけ保持する）
+let editParticipantIndex = null;
+let deleteTargetIndex = null;
+
+function renderParticipants(){
+  participantsList.innerHTML = '';
+  document.getElementById('noParticipantsMsg').classList.toggle('hidden', state.members.length > 0);
+  // 合計人数と男女の内訳（チーム数を決める目安にする）
+  const summary = document.getElementById('participantsSummary');
+  const males = state.members.filter(m=> m.gender==='男').length;
+  const females = state.members.filter(m=> m.gender==='女').length;
+  summary.textContent = `合計 ${state.members.length}人（男 ${males}人・女 ${females}人）`;
+  summary.classList.toggle('hidden', state.members.length === 0);
+  state.members.forEach((m,idx)=>{
+    const li = document.createElement('li');
+    const termLabel = m.term ? `・${esc(m.term)}期` : '';
+    li.innerHTML = `<div style="flex:1">
+        <strong>${esc(m.name)}</strong> <span class="small">（${esc(m.gender)}${termLabel}）</span>
+        <div class="small">勝率:${(m.rate||0).toFixed(2)} 試合:${m.matches||0}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button data-idx="${idx}" class="editBtn ghost">編集</button>
+        <button data-idx="${idx}" class="delBtn">削除</button>
+      </div>`;
+    participantsList.appendChild(li);
+  });
+}
+
+// 編集・削除イベント（ページ読み込み時に一度だけ登録する。renderParticipants()内に置くと
+// 呼び出すたびにリスナーが積み重なり、1人削除しただけで複数人削除されるバグの原因になるため注意）
+participantsList.addEventListener('click', (e) => {
+  // 編集
+  if(e.target.classList.contains('editBtn')) {
+    const i = +e.target.dataset.idx;
+    editParticipantIndex = i;
+    const m = state.members[i];
+    document.getElementById('editNameInput').value = m.name;
+    document.getElementById('editGenderSelect').value = m.gender;
+    document.getElementById('editTermInput').value = m.term || '';
+    document.getElementById('editParticipantModal').style.display = 'flex';
+  }
+
+  // --- 削除ボタン ---
+  if(e.target.classList.contains('delBtn')) {
+    deleteTargetIndex = +e.target.dataset.idx;
+    const m = state.members[deleteTargetIndex];
+    document.getElementById('deleteTargetName').textContent = m.name;
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+  }
+});
+
+//削除モーダルのキャンセル
+document.getElementById('cancelDeleteParticipant').addEventListener('click', ()=>{
+  deleteTargetIndex = null;
+  document.getElementById('deleteConfirmModal').style.display = 'none';
+});
+
+//削除実行
+document.getElementById('confirmDeleteParticipant').addEventListener('click', ()=>{
+  if(deleteTargetIndex === null) return;
+  const m = state.members[deleteTargetIndex];
+  const nameToDelete = m.name;
+
+  // ① メンバー削除
+  state.members.splice(deleteTargetIndex,1);
+
+  // ② 採用中のチーム・候補から外す（過去の試合・練習の記録はそのまま残す）
+  removeFromUpcoming(nameToDelete);
+
+  // ③ 成績と組んだ回数を記録から作り直す
+  rebuildStats();
+
+  saveState(state);
+  renderAll();
+
+  deleteTargetIndex = null;
+  document.getElementById('deleteConfirmModal').style.display = 'none';
+});
+
+// 編集キャンセル
+document.getElementById('cancelEditParticipant').addEventListener('click', ()=>{
+  editParticipantIndex = null;
+  document.getElementById('editParticipantModal').style.display = 'none';
+});
+
+// 編集保存
+document.getElementById('saveEditParticipant').addEventListener('click', ()=>{
+  if(editParticipantIndex === null) return;
+  const m = state.members[editParticipantIndex];
+  const oldName = m.name;
+  const newName = document.getElementById('editNameInput').value.trim() || oldName;
+
+  // 他の参加者と同じ名前にはできない（名前で人を見分けているため、2人分の記録が混ざる）
+  if(newName !== oldName && state.members.some((x,i)=> i!==editParticipantIndex && x.name===newName)){
+    alert('同じ名前の参加者がすでにいます。別の名前にしてください。');
+    return;
+  }
+
+  m.name = newName;
+  m.gender = document.getElementById('editGenderSelect').value;
+  m.term = document.getElementById('editTermInput').value.trim();
+
+  if(oldName !== newName){
+    // 試合・練習の記録、採用中のチーム、候補のすべてで名前を置き換える
+    renameEverywhere(oldName, newName);
+  }
+  rebuildStats();
+
+  saveState(state);
+  renderAll();
+
+  editParticipantIndex = null;
+  document.getElementById('editParticipantModal').style.display = 'none';
+});
+
+document.getElementById('addParticipant').addEventListener('click',()=>{
+  const name = document.getElementById('p_name').value.trim();
+  const gender = document.getElementById('p_gender').value;
+  const term = document.getElementById('p_term').value.trim();
+  if(!name){ alert('名前を入力してください'); return; }
+  if(findMember(name)){ alert('同じ名前の参加者がいます'); return; }
+  state.members.push({name, gender, term, rate:0, matches:0, pointsHistory: [], winsHistory: []});
+  rebuildStats(); // 以前削除した人を同じ名前で登録し直した場合は、過去の記録がそのまま戻る
+  saveState(state); renderParticipants();
+  document.getElementById('p_name').value='';
+  document.getElementById('p_term').value='';
+});
+renderParticipants();
+
+// === CSVから参加者を一括登録 ===
+function normalizeGender(raw){
+  const v = (raw||'').trim();
+  if(v==='男' || /^m(ale)?$/i.test(v)) return '男';
+  if(v==='女' || /^f(emale)?$/i.test(v)) return '女';
+  return null; // 不正な値
+}
+
+// 簡易CSVパーサー（ダブルクォート囲み・カンマを最低限サポート）
+function parseCsvLine(line){
+  const result = [];
+  let cur = '';
+  let inQuotes = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; }
+        else { inQuotes = false; }
+      } else { cur += ch; }
+    } else {
+      if(ch === '"'){ inQuotes = true; }
+      else if(ch === ','){ result.push(cur); cur=''; }
+      else { cur += ch; }
+    }
+  }
+  result.push(cur);
+  return result.map(s=>s.trim());
+}
+
+document.getElementById('importCsvBtn').addEventListener('click', ()=>{
+  document.getElementById('importCsvInput').click();
+});
+
+document.getElementById('importCsvInput').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    // 先頭のBOMを除去
+    const text = ev.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r\n|\n|\r/).filter(l=> l.trim().length>0);
+
+    if(lines.length===0){
+      alert('CSVファイルにデータが見つかりませんでした。');
+      e.target.value='';
+      return;
+    }
+
+    let rows = lines.map(parseCsvLine);
+
+    // 1行目が見出し（「名前」「性別」など）なら読み飛ばす
+    const firstCell = (rows[0][0]||'').trim();
+    if(firstCell==='名前' || firstCell.toLowerCase()==='name'){
+      rows = rows.slice(1);
+    }
+
+    let added = 0, skippedDup = 0, skippedInvalid = 0;
+    rows.forEach(cols=>{
+      const name = (cols[0]||'').trim();
+      const genderRaw = cols[1];
+      const term = (cols[2]||'').trim();
+      if(!name){ skippedInvalid++; return; }
+      const gender = normalizeGender(genderRaw);
+      if(!gender){ skippedInvalid++; return; }
+      if(findMember(name)){ skippedDup++; return; }
+      state.members.push({name, gender, term, rate:0, matches:0, pointsHistory: [], winsHistory: []});
+      added++;
+    });
+
+    rebuildStats();
+    saveState(state);
+    renderParticipants();
+
+    let msg = `${added}件の参加者を登録しました。`;
+    if(skippedDup>0) msg += `\n（同名のため${skippedDup}件をスキップ）`;
+    if(skippedInvalid>0) msg += `\n（形式が不正な行を${skippedInvalid}件スキップ）`;
+    alert(msg);
+
+    e.target.value = ''; // 同じファイルを連続で選べるようにリセット
+  };
+  reader.readAsText(file);
+});
+
+// --- チーム分けアルゴリズム ---
+// 実力（勝率）をできるだけ均等にしつつ、まだ組んだことがない人同士を優先して組む方式。
+// 1) 貪欲法でおおまかなチーム分けを組み立て（新しい組み合わせを優先）
+// 2) 同性同士のメンバーをチーム間でスワップしながら、実力バランスと新しさの合計スコアが
+//    良くなる限り繰り返し改善する（局所探索）
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function calculate_team_score(teamNames, membersDict){
+  let sum = 0;
+  teamNames.forEach(n=> sum += (membersDict[n].rate || 0));
+  return sum / Math.max(1, teamNames.length);
+}
+function calculate_new_teammate_score(teamNames, teammates_count){
+  let score = 0;
+  teamNames.forEach(a=>{
+    teamNames.forEach(b=>{
+      if(a!==b){
+        score += ((teammates_count[a] && teammates_count[a][b]===0)?1:0);
+      }
+    });
+  });
+  return score;
+}
+function calculate_preference_score(teamNames, teammates_count){
+  let score = 0;
+  teamNames.forEach(a=>{
+    teamNames.forEach(b=>{
+      if(a!==b){
+        const c = (teammates_count[a] && teammates_count[a][b])? teammates_count[a][b] : 0;
+        score += 1/(c+1);
+      }
+    });
+  });
+  return score;
+}
+
+// チーム数と男女の人数から、各チームの構成（男女何人ずつか）を決める
+// 優先順位：2男2女 → 4男 → 4女 → 3男1女 → 1男3女 → 余りは先頭のチームから順に振り分け
+// （ver7.8 までは「4女」「1男3女」がなく、女性が多いとチーム数が足りなくなっていた。
+//   男女を入れ替えて同じ考え方を足した。4人以上残っていれば、どれかの型で必ず1チーム作れる）
+// 4人そろわないチームは作らないので、人数が足りなければ指定より少ないチーム数になる
+function computeTeamComposition(maleCount, femaleCount, teamNum){
+  let m = maleCount, f = femaleCount;
+  const comp = [];
+  while(m>=2 && f>=2 && comp.length<teamNum){ comp.push(['男','男','女','女']); m-=2; f-=2; }
+  while(m>=4 && comp.length<teamNum){ comp.push(['男','男','男','男']); m-=4; }
+  while(f>=4 && comp.length<teamNum){ comp.push(['女','女','女','女']); f-=4; }
+  while(m>=3 && f>=1 && comp.length<teamNum){ comp.push(['男','男','男','女']); m-=3; f-=1; }
+  while(m>=1 && f>=3 && comp.length<teamNum){ comp.push(['男','女','女','女']); m-=1; f-=3; }
+  const remaining = [];
+  for(let i=0;i<m;i++) remaining.push('男');
+  for(let i=0;i<f;i++) remaining.push('女');
+  remaining.forEach((g,i)=>{
+    if(comp.length===0) comp.push([g]);
+    else comp[i % comp.length].push(g);
+  });
+  return comp;
+}
+
+// 貪欲法：構成表のスロットを順番に埋めていく。各スロットには、その時点で
+// 「すでにチーム内にいる人と組んだ回数が最も少ない人（期を考慮する場合は同じ期の人が
+// いないことも合わせて）」を割り当てる（新しい組み合わせを優先）
+function greedyAssignTeams(composition, males, females, teammates_count, membersDict, considerTerm, termWeight){
+  const poolM = shuffleArray(males.slice());
+  const poolF = shuffleArray(females.slice());
+  const teams = composition.map(()=>[]);
+
+  const maxSlots = Math.max(0, ...composition.map(c=>c.length));
+  for(let slot=0; slot<maxSlots; slot++){
+    for(let t=0; t<composition.length; t++){
+      const gender = composition[t][slot];
+      if(!gender) continue;
+      const pool = gender==='男' ? poolM : poolF;
+      if(pool.length===0) continue;
+
+      let bestIdx = 0, bestCost = Infinity;
+      pool.forEach((name, idx)=>{
+        let cost = 0;
+        teams[t].forEach(existing=>{
+          cost += (teammates_count[existing] && teammates_count[existing][name]) || 0;
+          if(considerTerm && membersDict[existing].term && membersDict[existing].term === membersDict[name].term){
+            cost += termWeight;
+          }
+        });
+        if(cost < bestCost){ bestCost = cost; bestIdx = idx; }
+      });
+      const chosen = pool.splice(bestIdx,1)[0];
+      teams[t].push(chosen);
+    }
+  }
+  return teams;
+}
+
+// チーム分け全体の「悪さ」を数値化する（小さいほど良い）
+// balanceWeight が大きいほど実力差を、termWeight が大きいほど同じ期の集中を減らすことを優先する
+function totalTeamCost(teams, membersDict, teammates_count, balanceWeight, considerTerm, termWeight){
+  const rates = teams.filter(t=>t.length).map(t=> calculate_team_score(t, membersDict));
+  const balanceSpread = rates.length ? (Math.max(...rates) - Math.min(...rates)) : 0;
+
+  let pairPenalty = 0;
+  let termPenalty = 0;
+  teams.forEach(team=>{
+    for(let i=0;i<team.length;i++){
+      for(let j=i+1;j<team.length;j++){
+        pairPenalty += (teammates_count[team[i]] && teammates_count[team[i]][team[j]]) || 0;
+        if(considerTerm){
+          const termA = membersDict[team[i]].term, termB = membersDict[team[j]].term;
+          if(termA && termB && termA === termB) termPenalty += 1;
+        }
+      }
+    }
+  });
+  return balanceSpread * balanceWeight + pairPenalty + (considerTerm ? termPenalty * termWeight : 0)
+       + rotationPenalty(teams, membersDict) * ROTATION_WEIGHT;
+}
+
+// 4男チームと5人チームを順番に回すための項。2つを合計せず、別々に数える
+// （合計すると「4男に多く入った人は休まない」「よく休む人は4男に入らない」で釣り合ってしまい、
+//   4男の回数と試合数のそれぞれが偏る。2026-11 のシミュレーションで確認）。
+//  - 4男チーム：これまで4男チームに入った回数（1回のチーム分け＝1回）が多い男子ほど入れにくくする。
+//    4男チームでは男子4人でアタッカー2枠を回すので、2試合に1回はアタッカーになれない
+//  - 5人チーム：これまで休んだ試合数が多い人ほど入れにくくする。休むのは男女とも（試合数が多い人から抜ける運用）。
+//    1回のチーム分けで5人チームは2試合するので、休みは2試合分。それを5人で分ける見込みで掛ける
+// 重みの目安：「4男にもう1回入る」を「同じ人ともう2回組む」と同じくらいの悪さにする
+// （同じ人と1回組むと組んだ回数は +2 なので、4 は「2回分」）。重み 2 と 4 を比べ、4 のほうが
+// 4男の回数（2〜3回）と試合数（差1以内）がそろい、同じ人と組む回数は変わらなかった。
+const ROTATION_WEIGHT = 4;
+const MATCHES_PER_ROUND = 2;
+function rotationPenalty(teams, membersDict){
+  let penalty = 0;
+  teams.forEach(team=>{
+    const men = team.filter(n=> membersDict[n] && membersDict[n].gender==='男');
+    if(team.length === 4 && men.length === 4){
+      men.forEach(n=>{ penalty += membersDict[n].fourMaleRounds || 0; });
+    }
+    if(team.length > 4){
+      const expectedSit = MATCHES_PER_ROUND * (team.length - 4) / team.length;
+      team.forEach(n=>{ penalty += expectedSit * (membersDict[n].sitOuts || 0); });
+    }
+  });
+  return penalty;
+}
+
+// 局所探索：同性同士のメンバーをチーム間でスワップし、コストが下がるなら採用する
+function localSearchImprove(teams, membersDict, teammates_count, balanceWeight, maxIterations, considerTerm, termWeight){
+  let bestCost = totalTeamCost(teams, membersDict, teammates_count, balanceWeight, considerTerm, termWeight);
+  let improved = true;
+  let iter = 0;
+
+  while(improved && iter < maxIterations){
+    improved = false;
+    iter++;
+    for(let t1=0; t1<teams.length; t1++){
+      for(let t2=t1+1; t2<teams.length; t2++){
+        for(let i=0;i<teams[t1].length;i++){
+          for(let j=0;j<teams[t2].length;j++){
+            const nameI = teams[t1][i], nameJ = teams[t2][j];
+            if(membersDict[nameI].gender !== membersDict[nameJ].gender) continue; // チーム構成（男女比）を崩さない
+
+            teams[t1][i] = nameJ; teams[t2][j] = nameI;
+            const newCost = totalTeamCost(teams, membersDict, teammates_count, balanceWeight, considerTerm, termWeight);
+            if(newCost < bestCost - 1e-9){
+              bestCost = newCost;
+              improved = true;
+            } else {
+              teams[t1][i] = nameI; teams[t2][j] = nameJ; // 改善しなければ元に戻す
+            }
+          }
+        }
+      }
+    }
+  }
+  return bestCost;
+}
+
+// 候補チームの作成：貪欲法＋局所探索を candidateCount 回試行し、コストが良い順に返す
+// considerTerm が true の場合、同じ期の人が同じチームに集中しないことも合わせて最適化する
+const TERM_WEIGHT = 3; // 「期をそろえない」ことを、だいたい何回分のペア重複と同じ重みにするか
+function generate_valid_teams(members, teammates_count, team_num, membersDict, balanceWeight, candidateCount, considerTerm){
+  const males = members.filter(m=>m.gender==='男').map(m=> m.name);
+  const females = members.filter(m=>m.gender==='女').map(m=> m.name);
+  const composition = computeTeamComposition(males.length, females.length, team_num);
+
+  if(composition.length === 0) return [];
+
+  const results = [];
+  const tries = Math.max(1, candidateCount);
+  for(let i=0;i<tries;i++){
+    const teams = greedyAssignTeams(composition, males, females, teammates_count, membersDict, considerTerm, TERM_WEIGHT);
+    const cost = localSearchImprove(teams, membersDict, teammates_count, balanceWeight, 200, considerTerm, TERM_WEIGHT);
+
+    const new_scores = teams.map(t=> calculate_new_teammate_score(t, teammates_count));
+    const total_new = new_scores.reduce((a,b)=>a+b,0);
+    const pref_scores = teams.map(t=> calculate_preference_score(t, teammates_count));
+    const total_pref = pref_scores.reduce((a,b)=>a+b,0);
+
+    results.push({teams: deepClone(teams), cost, total_new, total_pref});
+  }
+
+  // コスト（実力差＋組んだ回数＋期の集中度）が小さい順に並べる
+  results.sort((a,b)=> a.cost - b.cost);
+  return results;
+}
+function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+// --- チーム分け画面 rendering & controls ---
+// 実力バランス重視度のヒント表示切り替え
+document.getElementById('balanceHintToggle').addEventListener('click', ()=>{
+  const box = document.getElementById('balanceHintBox');
+  const nowHidden = box.classList.toggle('hidden');
+  document.getElementById('balanceHintToggle').textContent = nowHidden ? '目安を見る' : '閉じる';
+});
+
+document.getElementById('doTeam').addEventListener('click', ()=>{
+  rebuildStats();
+  const team_num = Math.max(1, parseInt(document.getElementById('team_num').value)||3);
+  const balanceWeight = parseFloat(document.getElementById('maxmin_step').value);
+  const candidateCount = Math.max(1, parseInt(document.getElementById('lowest_candidates').value) || 10);
+  const considerTerm = document.getElementById('considerTerm').checked;
+  // 設定も保存する（再読み込みでチーム数などが初期値に戻り、知らないうちに3チームで分けてしまわないように）
+  state.settings = {
+    teamNum: team_num,
+    balanceWeight: isNaN(balanceWeight) ? 5 : balanceWeight,
+    candidateCount,
+    considerTerm
+  };
+  const valid = generate_valid_teams(state.members, state.teammates_count, team_num, membersDictFromState(), isNaN(balanceWeight)?5:balanceWeight, candidateCount, considerTerm);
+  // 候補は state に保存する（ページを再読み込みしても候補と採用中のチームが消えないように）
+  state.candidates = valid;
+  state.selectedCandidate = valid.length ? 0 : null;
+  state.teams_current = valid.length ? deepClone(valid[0].teams) : [];
+  state.currentAdopted = false;
+
+  // 人数の都合で、指定したチーム数より少なくなった場合は知らせる
+  const notice = document.getElementById('teamNotice');
+  const made = valid.length ? valid[0].teams.length : 0;
+  if(state.members.length > 0 && made < team_num){
+    notice.textContent = made === 0
+      ? '参加者がいないため、チーム分けできませんでした。'
+      : `${state.members.length}人では4人以上のチームを${team_num}つ作れないため、${made}チームに分けました。`;
+    notice.classList.remove('hidden');
+  } else {
+    notice.classList.add('hidden');
+  }
+
+  saveState(state);
+  showView('team');
+});
+
+function membersDictFromState(){
+  const d = {};
+  state.members.forEach(m=> d[m.name] = {rate: m.rate || 0, matches: m.matches || 0, pointsHistory: m.pointsHistory || [], gender: m.gender, term: m.term || '', fourMaleRounds: (m.fourMaleMatches || 0) / MATCHES_PER_ROUND, sitOuts: m.sitOuts || 0});
+  return d;
+}
+
+// --- チーム分け候補の表示 ---
+// チーム表示用：名前と試合数だけ（期・休み・4男チームの試合数は出さない。休み・4男は結果画面のランキングにある）
+function formatMemberLabel(name){
+  const m = findMember(name);
+  const played = m && m.matchesPlayed ? m.matchesPlayed : 0;
+  return esc(`${name} (${played}試合)`);
+}
+
+function teamBoxesHTML(teams){
+  return teams.map((t,i)=>`<div class="team-box">
+      <div class="team-title">${teamName(i)}</div>
+      <div>${t.map(formatMemberLabel).join(' , ')}</div>
+    </div>`).join('');
+}
+
+function renderCandidates(){
+  const valid = state.candidates || [];
+  const sel = state.selectedCandidate;
+
+  // 第N回の表示（採用済みなら、いま使っている回の番号を出す）
+  document.getElementById('rotationCount').textContent =
+    (state.currentAdopted && state.currentRound != null) ? state.currentRound : nextRoundNo();
+  document.getElementById('teamCriteria').textContent =
+    sel === 0 ? '自動（おすすめ1位）' : (sel != null ? `手動（候補${sel+1}）` : '―');
+
+  const area = document.getElementById('candidatesArea');
+  area.innerHTML = '';
+  if(valid.length===0){
+    area.innerHTML = '<div class="small">まだ候補がありません。参加者の登録画面で「この設定でチーム分けする」を押してください</div>';
+  } else {
+    // 上位6候補を表示
+    valid.slice(0,6).forEach((c,idx)=>{
+      const isSelected = idx === sel;
+      const div = document.createElement('div');
+      div.className = 'card';
+      if(isSelected) div.style.borderColor = 'var(--accent)';
+      div.innerHTML = `
+        <div>
+          <strong>候補 ${idx+1}</strong> ${isSelected ? '<span class="tag">採用中</span>' : ''}<br>
+          新しい組合せスコア: ${c.total_new}<br>
+          組み合わせ好適度スコア: ${c.total_pref.toFixed(2)}
+        </div>
+        <div style="margin-top:6px">${teamBoxesHTML(c.teams)}</div>
+        <div style="margin-top:6px">
+          ${isSelected ? '' : `<button data-idx="${idx}" class="chooseCandidate">これを選択</button>`}
+        </div>`;
+      area.appendChild(div);
+    });
+  }
+
+  // 採用中のチーム分けを表示する（候補1固定ではなく、teams_current を出す）
+  const bestArea = document.getElementById('bestTeamsArea');
+  if(!state.teams_current || state.teams_current.length===0){
+    bestArea.innerHTML = '';
+    return;
+  }
+  const c = sel != null ? valid[sel] : null;
+  const heading = sel === 0 ? '採用中：最適なチーム分け（自動選択・候補1）'
+                : sel != null ? `採用中：候補${sel+1}（手動で選択）`
+                : '採用中のチーム分け';
+  bestArea.innerHTML = `
+    <div class="small">
+      ${heading}
+      ${c ? `<br>組んだことがない度合: ${c.total_new}<br>組んだ回数が少ない度合: ${c.total_pref.toFixed(2)}` : ''}
+    </div>
+    <div>${teamBoxesHTML(state.teams_current)}</div>`;
+}
+
+// 候補選択（候補一覧は描き直すたびに作り直すので、親要素で1回だけ受ける）
+document.getElementById('candidatesArea').addEventListener('click', e=>{
+  if(!e.target.classList.contains('chooseCandidate')) return;
+  const idx = +e.target.dataset.idx;
+  const cand = state.candidates[idx];
+  if(!cand) return;
+  state.teams_current = deepClone(cand.teams);
+  state.selectedCandidate = idx;
+  state.currentAdopted = false;
+  saveState(state);
+  renderAll();
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+document.getElementById('toggleReason').addEventListener('click', ()=>{
+  document.getElementById('reasonBox').classList.toggle('hidden');
+});
+
+document.getElementById('regen').addEventListener('click', ()=>{
+  // チーム分けの中で毎回シャッフルしているので、参加者一覧の順番は変えずにそのまま作り直す
+  document.getElementById('doTeam').click();
+});
+
+// --- combine: 採用して入力へ進む（採用処理 + 画面遷移） ---
+document.getElementById('acceptAndInput').addEventListener('click', ()=>{
+  if(!state.teams_current || state.teams_current.length===0){ alert('先にチーム分けを実行してください'); return; }
+  // 同じチーム分けで何度押しても、回数は1回分しか進めない
+  adoptCurrentTeams();
+  saveState(state);
+  // move to input screen and render
+  renderCurrentTeamsForInput();
+  showView('input');
+});
+
+// --- 勝敗入力画面 ---
+// render current teams and match select; show member checkboxes
+function renderCurrentTeamsForInput(){
+  const area = document.getElementById('currentTeamsArea');
+  area.innerHTML = '';
+  if(!state.teams_current || state.teams_current.length===0){ area.innerHTML = '<div class="small">チーム分けを先に実行してください</div>'; 
+    document.getElementById('perTeamInputs').classList.add('hidden');
+    return; 
+  }
+  state.teams_current.forEach((t,i)=>{
+    const box = document.createElement('div'); box.className='team-box';
+    box.innerHTML = `<div class="team-title">${teamName(i)}</div><div>${t.map(formatMemberLabel).join(' , ')}</div>`; // formatMemberLabel はエスケープ済み
+    area.appendChild(box);
+  });
+
+  // 対戦カード：このチーム分けの予定（1試合目→2試合目）を上に、それ以外の組み合わせを「手動」として下に出す
+  const sel = document.getElementById('matchSelect');
+  sel.innerHTML = '';
+  const {cards, secondPending} = scheduledCards();
+  const scheduledKeys = new Set();
+  const groupPlan = document.createElement('optgroup');
+  groupPlan.label = 'このチーム分けの試合';
+  cards.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = `${c.a}-${c.b}`;
+    opt.textContent = c.label + (c.done ? '（入力済み）' : '');
+    opt.disabled = c.done; // 入力済みのカードを選んで二重に記録しないように（直すときは試合履歴から）
+    groupPlan.appendChild(opt);
+    scheduledKeys.add(`${Math.min(c.a,c.b)}-${Math.max(c.a,c.b)}`);
+  });
+  if(secondPending){
+    const opt = document.createElement('option');
+    opt.disabled = true;
+    opt.textContent = '2試合目：1試合目の結果が2つそろうと決まります';
+    groupPlan.appendChild(opt);
+  }
+  if(groupPlan.children.length) sel.appendChild(groupPlan);
+  const groupManual = document.createElement('optgroup');
+  groupManual.label = 'その他の対戦（手動）';
+  for(let i=0;i<state.teams_current.length;i++){
+    for(let j=i+1;j<state.teams_current.length;j++){
+      if(scheduledKeys.has(`${i}-${j}`)) continue;
+      const opt = document.createElement('option');
+      opt.value = `${i}-${j}`;
+      opt.textContent = `${teamName(i)} vs ${teamName(j)}`;
+      groupManual.appendChild(opt);
+    }
+  }
+  if(groupManual.children.length) sel.appendChild(groupManual);
+
+  // 次に入力する予定のカードを選んでおく。予定がすべて終わっていれば何も選ばない
+  const next = cards.find(c=> !c.done);
+  const status = document.getElementById('scheduleStatus');
+  if(next){
+    sel.value = `${next.a}-${next.b}`;
+    status.textContent = '';
+  } else if(cards.length){
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- このチーム分けの試合はすべて入力済み --';
+    sel.insertBefore(placeholder, sel.firstChild);
+    sel.value = '';
+    status.textContent = 'このチーム分けの試合はすべて入力しました。「保存して次のチーム分けへ」で次に進めます。';
+  } else {
+    sel.selectedIndex = sel.options.length ? 0 : -1;
+    status.textContent = '';
+  }
+
+  sel.removeEventListener('change', updateMatchInputs); // avoid duplicate handlers
+  sel.addEventListener('change', updateMatchInputs);
+  updateMatchInputs();
+}
+
+// 得点欄の初期値。15点先取なので、負けたチームの得点だけ直せば入力が終わる
+const DEFAULT_POINTS = 15;
+// 得点はプルダウンで 0〜17 から選ぶ（デュースは2点差・17点で打ち切りなので、17対16 まで起こりうる）
+const MAX_POINTS = 17;
+// 得点のプルダウンに 0〜MAX_POINTS の選択肢を作る。keep に MAX_POINTS より大きい値を渡すと、
+// それも選択肢に入れる（以前の版で入力した 17 点超えの記録を、編集で消さないため）
+function setPointOptions(select, keep){
+  const max = Math.max(MAX_POINTS, Number(keep) || 0);
+  select.innerHTML = Array.from({length: max + 1}, (_, i)=> `<option value="${i}">${i}</option>`).join('');
+}
+['matchPointA', 'matchPointB'].forEach(id=>{
+  const select = document.getElementById(id);
+  setPointOptions(select);
+  select.value = DEFAULT_POINTS;
+});
+
+// 勝敗入力フォームの画面更新
+function updateMatchInputs(){
+  const sel = document.getElementById('matchSelect');
+  // カードが変わったら得点は必ず初期値に戻す（カード未選択のときも。前の試合の得点が残ると
+  // 「保存して次のチーム分けへ」が未保存の入力ありと判断して止まってしまう）
+  document.getElementById('matchPointA').value = DEFAULT_POINTS;
+  document.getElementById('matchPointB').value = DEFAULT_POINTS;
+  if(!sel.value){ document.getElementById('perTeamInputs').classList.add('hidden'); return; }
+  const [a,b] = sel.value.split('-').map(n=>parseInt(n));
+  const teamAName = teamName(a);
+  const teamBName = teamName(b);
+  document.getElementById('teamALabel').textContent = teamAName;
+  document.getElementById('teamBLabel').textContent = teamBName;
+
+  // populate member checkboxes for each team (checked by default)
+  const teamAMembersDiv = document.getElementById('teamAMembers');
+  const teamBMembersDiv = document.getElementById('teamBMembers');
+  teamAMembersDiv.innerHTML = '';
+  teamBMembersDiv.innerHTML = '';
+  const teamA = state.teams_current[a] || [];
+  const teamB = state.teams_current[b] || [];
+
+  teamA.forEach(name=>{
+    const id = `chkA_${escapeId(name)}`;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `<label><input type="checkbox" class="chk-member chkA" data-team="A" data-name="${esc(name)}" id="${id}" checked><span class="member-name">${esc(name)}</span></label>`;
+    teamAMembersDiv.appendChild(wrapper);
+  });
+  teamB.forEach(name=>{
+    const id = `chkB_${escapeId(name)}`;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `<label><input type="checkbox" class="chk-member chkB" data-team="B" data-name="${esc(name)}" id="${id}" checked><span class="member-name">${esc(name)}</span></label>`;
+    teamBMembersDiv.appendChild(wrapper);
+  });
+
+  document.getElementById('perTeamInputs').classList.remove('hidden');
+}
+
+function escapeId(s){ return s.replace(/[^a-z0-9_\-]/ig,'_'); }
+
+// 勝敗入力した後の勝敗や得点，誰と組んだか記録する処理
+function saveCurrentMatch() {
+  const selVal = document.getElementById('matchSelect').value;
+  if (!selVal) {
+    alert('対戦カードを選択してください');
+    return false;
+  }
+
+  const [a, b] = selVal.split('-').map(n => parseInt(n));
+  const ptsA = parseInt(document.getElementById('matchPointA').value) || 0;
+  const ptsB = parseInt(document.getElementById('matchPointB').value) || 0;
+
+  // --- 得点から勝敗を自動判定（同点は非対応） ---
+  if (ptsA === ptsB) {
+    alert('同点です。このアプリは引き分けに対応していません。どちらかのチームの得点を変更してください。');
+    return false;
+  }
+  let resA, resB;
+  if (ptsA > ptsB) {
+    resA = 'win';
+    resB = 'lose';
+  } else {
+    resA = 'lose';
+    resB = 'win';
+  }
+
+  // --- チェック付きメンバー取得 ---
+  const checkedA = Array.from(document.querySelectorAll('.chkA'))
+    .filter(ch => ch.checked)
+    .map(ch => ch.dataset.name);
+  const checkedB = Array.from(document.querySelectorAll('.chkB'))
+    .filter(ch => ch.checked)
+    .map(ch => ch.dataset.name);
+  // --- チェック人数バリデーション ---
+  if (!(checkedA.length === 4 && checkedB.length === 4)) {
+    alert('出場したメンバーを各チーム4人（合計8人）チェックしてください（チェックされたメンバーのみ更新されます）。');
+    return false;
+  }
+
+  // 5人チームで休むのは男女とも（試合数が多い人から抜ける運用）。誰が休んでも確認は出さない
+
+  // --- 試合記録（出場した8人だけ。teams が唯一の正） ---
+  // 回（round）とチーム番号（teamIdx）も残す：5人チームで誰が休んだか、2試合目のカードを決めるのに使う
+  adoptCurrentTeams(); // 「試合を始める」を押さずに入力画面に来た場合も、ここで第N回として記録する
+  const time = new Date().toISOString();
+  const rec = {
+    time,
+    round: state.currentRound,
+    teamIdx: [a, b],
+    teams: [checkedA, checkedB],
+    winnerTeamIndex: (resA === 'win' ? 0 : 1),
+    pointsA: ptsA,
+    pointsB: ptsB
+  };
+  state.matches.push(rec);
+
+  // --- 成績と組んだ回数を記録から作り直す・保存・再描画 ---
+  rebuildStats();
+  saveState(state);
+  renderMatchesTable();
+  return true;
+}
+
+
+// 以下の3つの操作ボタンは、それぞれ内部で試合結果の保存も行う
+document.getElementById('nextMatch').addEventListener('click', ()=>{
+  if(!saveCurrentMatch()) return;
+  // 次の予定カードを選び直す（2試合目のカードはここで決まる）
+  renderCurrentTeamsForInput();
+  const next = scheduledCards().cards.find(c=> !c.done);
+  alert(next
+    ? `保存しました。次は「${next.label.replace(/\s+/g,' ')}」です。`
+    : '保存しました。このチーム分けの試合はすべて入力しました。「保存して次のチーム分けへ」で次に進めます。');
+});
+
+// 得点欄が入力されているか（両方初期値の15のまま＝まだ何も入力していない、とみなす。15対15は同点なので記録できない）
+function hasPendingMatchInput(){
+  if(!document.getElementById('matchSelect').value) return false;
+  const ptsA = parseInt(document.getElementById('matchPointA').value) || 0;
+  const ptsB = parseInt(document.getElementById('matchPointB').value) || 0;
+  return ptsA !== DEFAULT_POINTS || ptsB !== DEFAULT_POINTS;
+}
+
+// 「保存して次のチーム分けへ」：得点が入っていれば保存してから、なければそのまま次のチーム分けへ
+document.getElementById('changeTeams').addEventListener('click', () => {
+  const pending = hasPendingMatchInput();
+  const msg = pending
+    ? '入力中の試合結果を保存して、次のチーム分けに移ります。よろしいですか？'
+    : '得点が入力されていないので、試合は保存せずに次のチーム分けに移ります。よろしいですか？';
+  if (!confirm(msg)) return;
+  if (pending && !saveCurrentMatch()) return;
+  document.getElementById('doTeam').click();
+});
+
+// 「結果を見る」：得点が入っていれば保存してから、なければそのまま結果画面へ
+document.getElementById('finishRotation').addEventListener('click', ()=>{
+  if(hasPendingMatchInput() && !saveCurrentMatch()) return;
+  saveState(state);
+  showView('result');
+});
+
+document.getElementById('backToTeamFromResult').addEventListener('click', ()=>{
+  showView('team');
+});
+
+// --- 結果表示 ---
+function renderRanking(){
+  // flatten members: compute rate and average points
+  recalcMemberRates();
+  const arr = state.members.map(m=> ({
+    name: m.name,
+    rate: m.rate || 0,
+    avgPoint: (m.pointsHistory && m.pointsHistory.length)
+      ? (m.pointsHistory.reduce((a,b)=>a+b,0) / m.pointsHistory.length)
+      : 0,
+    matchesPlayed: m.matchesPlayed || 0,  // ← 試合数追加
+    isMale: m.gender === '男',
+    sitOuts: m.sitOuts || 0,
+    fourMaleMatches: m.fourMaleMatches || 0
+  }));
+
+  arr.sort((a,b)=> (b.rate - a.rate) || (b.avgPoint - a.avgPoint));
+
+  const area = document.getElementById('rankingArea');
+  area.innerHTML = `
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>順位</th>
+          <th>名前</th>
+          <th>試合数</th>  <!-- ← 追加 -->
+          <th>勝率</th>
+          <th>平均得点</th>
+          <th>休み</th>
+          <th>4男</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${arr.map((r,i)=>`
+          <tr>
+            <td>${i+1}</td>
+            <td>${esc(r.name)}</td>
+            <td>${r.matchesPlayed}</td> <!-- ← 追加 -->
+            <td>${r.rate.toFixed(2)}</td>
+            <td>${r.avgPoint.toFixed(1)}</td>
+            <td>${r.sitOuts}</td>
+            <td>${r.isMale ? r.fourMaleMatches : '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    </div>`;
+
+  // teammates count area（元のまま変更なし）
+  const tArea = document.getElementById('teammatesCountArea');
+
+let html = '<div class="table-wrap"><table class="teammates-cross-table"><thead><tr><th>名前</th>';
+// 列ヘッダとしてメンバー名を追加
+state.members.forEach(m => {
+  html += `<th>${esc(m.name)}</th>`;
+});
+html += '</tr></thead><tbody>';
+
+// 行ごとにメンバー名 + チームメイト回数
+state.members.forEach(rowMember => {
+  html += `<tr><td>${esc(rowMember.name)}</td>`;
+  state.members.forEach(colMember => {
+    if (rowMember.name === colMember.name) {
+      html += '<td>-</td>'; // 自分自身との交差は "-" 表示
+    } else {
+      const count = (state.teammates_count[rowMember.name] && state.teammates_count[rowMember.name][colMember.name]) || 0;
+      html += `<td>${count}</td>`;
+    }
+  });
+  html += '</tr>';
+});
+
+html += '</tbody></table></div>';
+tArea.innerHTML = html;
+}
+
+
+// --- 試合履歴表示・編集 ---
+// （成績と組んだ回数の作り直しは rebuildStats() に一本化した。練習verの記録も含めて数え直す）
+
+function renderMatchesTable(){
+  const tbody = document.querySelector('#matchesTable tbody');
+  if (!tbody) return; // 安全チェック
+  tbody.innerHTML = '';
+
+  state.matches.slice().reverse().forEach((rec, idx) => {
+    const row = document.createElement('tr');
+
+    // --- 表示するメンバー（teams が唯一の正。削除済みの人には印を付ける） ---
+    const names = sideNames(rec);
+    const teamA = (rec.teams[0]||[]).map(historyName).join(', ');
+    const teamB = (rec.teams[1]||[]).map(historyName).join(', ');
+    const roundLabel = rec.round != null ? `第${rec.round}回 ` : '';
+    const teamsDesc = esc(`${roundLabel}${names[0]}: ${teamA} vs ${names[1]}: ${teamB}`);
+
+    const winnerText = esc(`${names[rec.winnerTeamIndex]}の勝ち`);
+    const pointsText = `${rec.pointsA} - ${rec.pointsB}`;
+
+    row.innerHTML = `
+      <td>${new Date(rec.time).toLocaleString()}</td>
+      <td style="max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        ${teamsDesc}
+      </td>
+      <td>${winnerText}</td>
+      <td>${pointsText}</td>
+      <td>
+        <button class="editMatchBtn ghost" data-i="${state.matches.length - 1 - idx}">編集</button>
+        <button class="delMatch danger" data-i="${state.matches.length - 1 - idx}">削除</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// 編集対象・削除対象を記録する変数（renderMatchesTable()の外で1つだけ保持する）
+let editMatchIndex = null;
+let deleteMatchIndex = null;
+
+// 編集モーダルに、登録メンバーのプルダウンと現在の値をセットする
+function populateEditMatchModal(index){
+  const m = state.matches[index];
+  const teamA = m.teams[0]||[];
+  const teamB = m.teams[1]||[];
+
+  function buildSelects(teamKey, currentTeam){
+    let html = '';
+    for(let i=0;i<4;i++){
+      const current = currentTeam[i] || '';
+      let options = state.members.map(mem=>
+        `<option value="${esc(mem.name)}" ${mem.name===current?'selected':''}>${esc(mem.name)}</option>`
+      ).join('');
+      // 削除済みの人が出場していた試合でも、その人を選んだまま保存できるようにする
+      if(current && !findMember(current)){
+        options = `<option value="${esc(current)}" selected>${esc(historyName(current))}</option>` + options;
+      }
+      html += `<select class="editMemberSelect" data-team="${teamKey}" style="margin-bottom:6px">
+        <option value="">-- 選択してください --</option>
+        ${options}
+      </select>`;
+    }
+    return html;
+  }
+
+  // 左右のチーム名（ABCD）を見出し・勝利チーム・得点欄に出す
+  const names = sideNames(m);
+  document.getElementById('editSideALabel').textContent = names[0];
+  document.getElementById('editSideBLabel').textContent = names[1];
+  document.getElementById('editWinnerOptA').textContent = `${names[0]}の勝ち`;
+  document.getElementById('editWinnerOptB').textContent = `${names[1]}の勝ち`;
+  document.getElementById('editPointALabel').textContent = `得点（${names[0]}）`;
+  document.getElementById('editPointBLabel').textContent = `得点（${names[1]}）`;
+
+  document.getElementById('editTeamASelects').innerHTML = buildSelects('A', teamA);
+  document.getElementById('editTeamBSelects').innerHTML = buildSelects('B', teamB);
+  document.getElementById('editWinner').value = String(m.winnerTeamIndex);
+  const editPointA = document.getElementById('editPointA');
+  const editPointB = document.getElementById('editPointB');
+  setPointOptions(editPointA, m.pointsA);
+  setPointOptions(editPointB, m.pointsB);
+  editPointA.value = m.pointsA;
+  editPointB.value = m.pointsB;
+}
+
+// 編集・削除ボタンは行ごとに再生成されるが、その親のtbodyは同じ要素なのでイベント委任で1回だけ登録する
+document.querySelector('#matchesTable tbody').addEventListener('click', (e)=>{
+  if(e.target.classList.contains('editMatchBtn')){
+    editMatchIndex = +e.target.dataset.i;
+    populateEditMatchModal(editMatchIndex);
+    document.getElementById('editMatchModal').style.display = 'flex';
+  }
+  if(e.target.classList.contains('delMatch')){
+    deleteMatchIndex = +e.target.dataset.i;
+    document.getElementById('deleteMatchModal').style.display = 'flex';
+  }
+});
+
+// キャンセル
+document.getElementById('cancelEditMatch').addEventListener('click', ()=>{
+  editMatchIndex = null;
+  document.getElementById('editMatchModal').style.display = 'none';
+});
+
+// 保存
+document.getElementById('saveEditMatch').addEventListener('click', ()=>{
+  if(editMatchIndex===null) return;
+
+  const selects = Array.from(document.querySelectorAll('.editMemberSelect'));
+  const teamANames = selects.filter(s=>s.dataset.team==='A').map(s=>s.value);
+  const teamBNames = selects.filter(s=>s.dataset.team==='B').map(s=>s.value);
+
+  // --- 未選択チェック ---
+  if(teamANames.some(n=>!n) || teamBNames.some(n=>!n)){
+    alert('両チームとも4人ずつ選択してください。');
+    return;
+  }
+
+  // --- 重複チェック（同じ人が同じチーム内、または両チームにまたがって選択されていないか） ---
+  const allNames = [...teamANames, ...teamBNames];
+  const uniqueNames = new Set(allNames);
+  if(uniqueNames.size !== allNames.length){
+    alert('同じ人が重複して選択されています。両チームに同じ人が入らないよう、選び直してください。');
+    return;
+  }
+
+  const winnerIdx = parseInt(document.getElementById('editWinner').value, 10);
+  const ptsA = parseInt(document.getElementById('editPointA').value, 10) || 0;
+  const ptsB = parseInt(document.getElementById('editPointB').value, 10) || 0;
+
+  // --- 同点チェック（引き分け非対応） ---
+  if(ptsA === ptsB){
+    alert('同点です。このアプリは引き分けに対応していません。得点を変更してください。');
+    return;
+  }
+
+  // --- 得点と勝利チームの矛盾チェック（矛盾していても確認の上、続行は可能） ---
+  const scoreImpliesWinner = ptsA > ptsB ? 0 : 1;
+  if(scoreImpliesWinner !== winnerIdx){
+    if(!confirm('得点から見ると勝敗が逆のようです（得点の高いチームが勝利チームになっていません）。このまま保存しますか？')) return;
+  }
+
+  const m = state.matches[editMatchIndex];
+  m.teams = [teamANames, teamBNames];
+  m.winnerTeamIndex = winnerIdx;
+  m.pointsA = ptsA;
+  m.pointsB = ptsB;
+
+  rebuildStats();
+  saveState(state);
+  renderMatchesTable();
+  renderRanking(); // 結果画面（ランキング・組合せ表）にも変更を反映
+
+  editMatchIndex = null;
+  document.getElementById('editMatchModal').style.display = 'none';
+  alert('試合結果を更新しました。');
+});
+
+// キャンセル
+document.getElementById('noDeleteMatch').addEventListener('click', ()=>{
+  deleteMatchIndex = null;
+  document.getElementById('deleteMatchModal').style.display = 'none';
+});
+
+// 削除確定
+document.getElementById('yesDeleteMatch').addEventListener('click', ()=>{
+  if(deleteMatchIndex === null) return;
+
+  state.matches.splice(deleteMatchIndex,1);
+  rebuildStats();
+  saveState(state);
+  renderMatchesTable();
+  renderRanking(); // 結果画面にも変更を反映
+
+  deleteMatchIndex = null;
+  document.getElementById('deleteMatchModal').style.display = 'none';
+});
+
+
+// 試合履歴をCSVエクスポート
+// CSV出力用：名前の隣に「(期)」を付ける（期が未登録の場合は名前のみ）
+function nameWithTerm(name){
+  const m = findMember(name);
+  return (m && m.term) ? `${name}(${m.term})` : name;
+}
+
+document.getElementById('exportMatches').addEventListener('click', ()=>{
+  // CSV of matches (time, round, teams, winner, pointsA, pointsB)。pointsA は teams の左側のチームの得点
+  const rows = [['time','round','teams','winner','pointsA','pointsB']];
+  state.matches.forEach(m=>{
+    const names = sideNames(m);
+    const teamsText = `${names[0]}:${m.teams[0].map(nameWithTerm).join('|')} || ${names[1]}:${m.teams[1].map(nameWithTerm).join('|')}`;
+    const winner = names[m.winnerTeamIndex];
+    rows.push([m.time, m.round != null ? m.round : '', teamsText, winner, m.pointsA, m.pointsB]);
+  });
+
+  const csvContent = rows
+    .map(r => r.map(c => `"${('' + c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  //BOM付きUTF-8で出力（Excel文字化け防止）
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'matches_export.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+
+// === 最終結果CSVエクスポート ===
+document.getElementById('exportResult').addEventListener('click', ()=>{
+  recalcMemberRates();
+  // ヘッダに試合数を追加
+  const rows = [['順位','名前','勝率','平均得点','試合数','休み','4男チーム試合数']];
+  const arr = state.members.map(m=> ({
+    name: m.term ? `${m.name}(${m.term})` : m.name,
+    rate: m.rate || 0,
+    avgPoint: (m.pointsHistory && m.pointsHistory.length)
+      ? (m.pointsHistory.reduce((a,b)=>a+b,0)/m.pointsHistory.length)
+      : 0,
+    matchesPlayed: m.matchesPlayed || 0,  // 追加
+    sitOuts: m.sitOuts || 0,
+    fourMaleMatches: m.gender==='男' ? (m.fourMaleMatches || 0) : '-'
+  }));
+
+  arr.sort((a,b)=> (b.rate - a.rate) || (b.avgPoint - a.avgPoint));
+  arr.forEach((r,i)=> rows.push([i+1, r.name, r.rate.toFixed(2), r.avgPoint.toFixed(1), r.matchesPlayed, r.sitOuts, r.fourMaleMatches]));
+
+  // --- BOM付きUTF-8で出力 ---
+  const csvContent = rows.map(r=>r.map(c=>`"${(''+c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);  // ← これがBOM
+  const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'final_result.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+
+
+// === 全データのバックアップ（JSONエクスポート） ===
+document.getElementById('exportBackup').addEventListener('click', downloadBackup);
+function downloadBackup(){
+  const backup = {
+    app: 'teamapp',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    state: state
+  };
+  const jsonContent = JSON.stringify(backup, null, 2);
+  const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  const blob = new Blob([bom, jsonContent], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `teamapp_backup_${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// === 新しい大会を始める ===
+// 参加者の名簿（名前・性別・期）とチーム分けの設定だけを残し、試合・チーム分け・成績・休みの数は空にして第1回から始める。
+// 参加しない人は、始めたあとに参加者一覧から削除する運用（参加チェックは作らない）
+function startNewEvent(){
+  const roster = state.members.map(m=> ({name: m.name, gender: m.gender, term: m.term || ''}));
+  const settings = state.settings;
+  state = emptyState(state.mode);
+  state.members = roster;
+  if(settings) state.settings = settings;
+  rebuildStats(); // 名簿だけの状態から成績（0）を作り直す
+  saveState(state);
+  document.getElementById('teamNotice').classList.add('hidden');
+  document.getElementById('practiceStatus').classList.add('hidden');
+  document.getElementById('reasonBox').classList.add('hidden');
+  showView('register');
+}
+function openNewEventModal(){
+  document.getElementById('menuList').classList.remove('visible');
+  document.getElementById('newEventModal').style.display = 'flex';
+}
+function closeNewEventModal(){
+  document.getElementById('newEventModal').style.display = 'none';
+}
+document.getElementById('menuNewEvent').addEventListener('click', e=>{ e.preventDefault(); openNewEventModal(); });
+document.getElementById('newEventFromResult').addEventListener('click', openNewEventModal);
+document.getElementById('newEventFromHistory').addEventListener('click', openNewEventModal);
+document.getElementById('cancelNewEvent').addEventListener('click', closeNewEventModal);
+document.getElementById('newEventWithBackup').addEventListener('click', ()=>{
+  downloadBackup(); // 消す前の状態を保存する
+  closeNewEventModal();
+  startNewEvent();
+  alert('今の大会をバックアップして、新しい大会を始めました。今回参加しない人は参加者一覧から削除してください。');
+});
+document.getElementById('newEventWithoutBackup').addEventListener('click', ()=>{
+  closeNewEventModal();
+  startNewEvent();
+  alert('新しい大会を始めました。今回参加しない人は参加者一覧から削除してください。');
+});
+
+// === 全データの復元（JSONインポート） ===
+document.getElementById('importBackupBtn').addEventListener('click', ()=>{
+  document.getElementById('importBackupInput').click();
+});
+
+document.getElementById('importBackupInput').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const parsed = JSON.parse(ev.target.result);
+      const restoredState = parsed && parsed.state ? parsed.state : parsed; // 旧形式(state直下)にも対応
+
+      // --- 最低限の妥当性チェック ---
+      if(!restoredState || !Array.isArray(restoredState.members) || !Array.isArray(restoredState.matches)){
+        alert('バックアップファイルの形式が正しくありません。復元できませんでした。');
+        return;
+      }
+
+      if(!confirm('現在のデータをすべて置き換えて、バックアップファイルの内容を復元します。よろしいですか？')){
+        return;
+      }
+
+      const keepMode = state.mode || null;
+      state = normalizeState(restoredState);
+      if(restoredState.mode === undefined) state.mode = keepMode;
+      rebuildStats();
+      saveState(state);
+      restoreSettingsInputs();
+      applyModeUI();
+      renderAll();
+      showView(state.mode ? 'register' : 'mode');
+      alert('バックアップから復元しました。');
+    }catch(err){
+      alert('バックアップファイルを読み込めませんでした。ファイルが壊れているか、JSON形式ではない可能性があります。');
+    }finally{
+      e.target.value = ''; // 同じファイルを連続で選べるようにリセット
+    }
+  };
+  reader.readAsText(file);
+});
+
+// helpers to render everything relevant
+function renderAll(){
+  renderParticipants();
+  renderCandidates();
+  renderCurrentTeamsForInput();
+  renderRanking();
+  renderMatchesTable();
+}
+// 保存してあるチーム分けの設定を入力欄に戻す
+function restoreSettingsInputs(){
+  const s = state.settings;
+  if(!s) return;
+  if(s.teamNum) document.getElementById('team_num').value = s.teamNum;
+  if(s.balanceWeight != null) document.getElementById('maxmin_step').value = s.balanceWeight;
+  if(s.candidateCount) document.getElementById('lowest_candidates').value = s.candidateCount;
+  document.getElementById('considerTerm').checked = !!s.considerTerm;
+}
+restoreSettingsInputs();
+
+// 起動時に、保存されている記録から成績と組んだ回数を作り直す（旧版で壊れた回数もここで正しくなる）
+rebuildStats();
+saveState(state);
+renderAll();
+
+// on load, hide reason box & perTeamInputs by default
+document.getElementById('reasonBox').classList.add('hidden');
+document.getElementById('perTeamInputs').classList.add('hidden');
+
+// === モード（rabbit杯ver / 練習ver）ごとの表示切り替え ===
+function applyModeUI(){
+  const isPractice = state.mode === 'practice';
+
+  // ヘッダーに現在のモードを表示
+  const badge = document.getElementById('modeBadge');
+  if(state.mode){
+    badge.textContent = isPractice ? '🔄 練習ver' : '🏆 rabbit杯ver';
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+
+  // チーム分け画面のボタン出し分け
+  document.getElementById('acceptAndInput').classList.toggle('hidden', isPractice);
+  document.getElementById('practiceAccept').classList.toggle('hidden', !isPractice);
+
+  // ボトムステッパーの「試合入力」は練習verでは使わないので隠す
+  const inputStep = document.querySelector('.step-item[data-target="input"]');
+  if(inputStep) inputStep.classList.toggle('hidden', isPractice);
+
+  // 練習verでは「結果」ステップを「組み合わせ状況」として3番目に表示する
+  document.getElementById('resultStepCircle').textContent = isPractice ? '3' : '4';
+  document.getElementById('resultStepLabel').textContent = isPractice ? '組み合わせ状況' : '結果';
+  document.getElementById('resultHeading').textContent = isPractice ? '組み合わせ状況を確認しよう' : '結果を確認しよう';
+  document.getElementById('resultIntro').textContent = isPractice
+    ? 'ここまで誰と何回組んだかです。チーム分けに戻って練習を続けることもできます。'
+    : 'ここまでの成績です。チーム分けに戻って試合を続けることもできます。';
+
+  // 結果画面：練習verは勝敗・得点を記録しないのでランキングとCSV出力を隠し、組み合わせ表のみ表示する
+  const rankingBlock = document.getElementById('rankingBlock');
+  const resultExportRow = document.getElementById('resultExportRow');
+  const practiceExportRow = document.getElementById('practiceExportRow');
+  if(rankingBlock) rankingBlock.classList.toggle('hidden', isPractice);
+  if(resultExportRow) resultExportRow.classList.toggle('hidden', isPractice);
+  if(practiceExportRow) practiceExportRow.classList.toggle('hidden', !isPractice);
+  if(!isPractice) document.getElementById('practiceStatus').classList.add('hidden');
+}
+
+// モード選択ボタン
+document.querySelectorAll('.modeSelectBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    state.mode = btn.dataset.mode; // 'tournament' または 'practice'
+    saveState(state);
+    applyModeUI();
+    showView('register');
+  });
+});
+
+// 練習ver：試合結果を記録せず、組み合わせだけを記録して次のチーム分けへ自動で進む
+document.getElementById('practiceAccept').addEventListener('click', ()=>{
+  if(!state.teams_current || state.teams_current.length===0){ alert('先にチーム分けを実行してください'); return; }
+
+  const finishedRound = state.rotationCount || 1;
+
+  // チーム分けの履歴として記録する。組んだ回数はこの記録から rebuildStats() で数える
+  // （ver7.8 までは回数を直接足していたため、試合の編集・削除で消えていた）
+  state.practiceHistory.push({
+    round: finishedRound,
+    time: new Date().toISOString(),
+    teams: deepClone(state.teams_current)
+  });
+
+  state.rotationCount = finishedRound + 1;
+  rebuildStats();
+  saveState(state);
+
+  const statusEl = document.getElementById('practiceStatus');
+  statusEl.textContent = `第${finishedRound}回の組み合わせを記録しました。続けて次の組み合わせを表示します。`;
+  statusEl.classList.remove('hidden');
+
+  // 次のチーム分けを自動生成（チーム分け画面のまま）
+  document.getElementById('doTeam').click();
+});
+
+// 練習ver：チーム分け履歴をCSVで出力
+document.getElementById('exportPracticeHistory').addEventListener('click', ()=>{
+  if(!state.practiceHistory || state.practiceHistory.length===0){
+    alert('まだ記録されたチーム分けがありません。「この組み合わせで練習する」を押すと記録されます。');
+    return;
+  }
+
+  const rows = [['回','日時','チーム','メンバー']];
+  state.practiceHistory.forEach(rec=>{
+    const timeStr = new Date(rec.time).toLocaleString();
+    rec.teams.forEach((team,i)=>{
+      rows.push([String(rec.round), timeStr, teamName(i), team.map(nameWithTerm).join(' / ')]);
+    });
+  });
+
+  const csvBody = rows.map(row=>
+    row.map(cell=>{
+      const s = String(cell);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+    }).join(',')
+  ).join('\r\n');
+
+  const bom = new Uint8Array([0xEF,0xBB,0xBF]);
+  const blob = new Blob([bom, csvBody], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `practice_team_history_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+applyModeUI();
+
+// モードが未選択ならモード選択画面、選択済みなら参加者登録画面から開始
+showView(state.mode ? 'register' : 'mode');
+
+// === 全データ削除ボタン ===
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btnClear = document.getElementById('clearAll');
+  const modal = document.getElementById('confirmModal');
+  const btnYes = document.getElementById('yesDelete');
+  const btnNo = document.getElementById('noDelete');
+
+  // 削除ボタンでモーダルを開く
+  btnClear.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+
+  // キャンセル
+  btnNo.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+
+  // 削除確定
+  btnYes.addEventListener('click', () => {
+    modal.style.display = 'none';
+    
+    // データ削除処理（モード選択は維持する）
+    state = emptyState(state.mode);
+    document.getElementById('teamNotice').classList.add('hidden');
+    saveState(state);
+    renderAll();
+    alert('すべてのデータを削除しました');
+  });
+});
+
+</script>
+</body>
+</html>
